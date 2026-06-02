@@ -1,5 +1,7 @@
 # MediaCentral Explorer
 
+![Main screen](.github/data/main-screen.png)
+
 MediaCentral Explorer is a desktop app and command-line tool for browsing an
 Avid MediaCentral workgroup and exporting readable asset metadata.
 
@@ -166,6 +168,8 @@ python3.13 app/interplay_explorer.py \
 
 The default output includes duration, media status, and created/modified dates.
 Additional fields can be enabled in the app or passed with `--fields` in the CLI.
+
+![Metadata fields](.github/data/metadata-fields.png)
 
 Available field groups include:
 

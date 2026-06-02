@@ -63,7 +63,7 @@ IS_WIN = sys.platform == "win32"
 IS_MAC = sys.platform == "darwin"
 
 print("=" * 60)
-print(" MediaCentral Explorer — Build")
+print(" MediaCentral Explorer: Build")
 print("=" * 60)
 print(f" Platform  : {platform.system()}")
 print(f" Version   : {VERSION}")
@@ -85,17 +85,33 @@ def _ensure_pillow():
 def make_ico(src: Path, out: Path):
     _ensure_pillow()
     from PIL import Image
-    img   = Image.open(src).convert("RGBA")
-    sizes = [16, 32, 48, 64, 128, 256]
-    icons = [img.resize((s, s), Image.LANCZOS) for s in sizes]
-    icons[0].save(out, format="ICO",
-                  sizes=[(s, s) for s in sizes],
-                  append_images=icons[1:])
+
+    orig = Image.open(src).convert("RGBA")
+
+    # Covers standard DPI (16/32/48) + HiDPI variants for 125%/150%/200% scaling
+    sizes = [16, 20, 24, 32, 40, 48, 64, 96, 128, 256]
+
+    # Progressive downscaling: each frame derived from the next-larger one
+    # rather than the full 4K source, which gives sharper results at small sizes
+    icons: dict[int, Image.Image] = {}
+    prev = orig
+    for s in sorted(sizes, reverse=True):
+        icons[s] = prev.resize((s, s), Image.LANCZOS)
+        if s < min(orig.size):
+            prev = icons[s]
+
+    ordered = [icons[s] for s in sizes]
+    ordered[0].save(
+        out,
+        format="ICO",
+        sizes=[(s, s) for s in sizes],
+        append_images=ordered[1:],
+    )
     print(f"  Created : {out.name}")
 
 def make_icns(src: Path, out: Path):
     if not IS_MAC:
-        print("  .icns generation requires macOS — skipping")
+        print("  .icns generation requires macOS (skipping)")
         return
     tmp     = Path(tempfile.mkdtemp())
     iconset = tmp / "icon.iconset"
@@ -287,7 +303,7 @@ def _run_inno(iss_path: Path):
                 iscc = candidate
                 break
     if not iscc:
-        print("  Inno Setup not found — skipping installer.")
+        print("  Inno Setup not found, skipping installer.")
         print("  Install it: choco install innosetup  or  https://jrsoftware.org/isinfo.php")
         return
     print("  Running ISCC…")

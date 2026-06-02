@@ -26,8 +26,8 @@ Date:    2026-05-26  10:30
 │   ├── A001C001 INTERVIEW WIDE       00:04:12:09   Online   MC
 │   │   Created: jsmith 2026-01-20 08:14   |   Modified: jsmith 2026-01-20 08:14
 │   │   Markers (3):
-│   │     01:00:08:14  RED      jsmith: False start — ignore
-│   │     01:00:45:02  GREEN    jsmith: Best answer — use this
+│   │     01:00:08:14  RED      jsmith: False start, ignore
+│   │     01:00:45:02  GREEN    jsmith: Best answer, use this
 │   │     01:03:21:18  YELLOW   jeditor: Check audio dropout here
 │   │
 │   ├── A001C002 INTERVIEW WIDE       00:02:58:22   Online   MC
@@ -36,7 +36,7 @@ Date:    2026-05-26  10:30
 │   └── A002C001 INTERVIEW CU         00:06:01:11   Online   MC
 │       Created: jsmith 2026-01-20 09:45   |   Modified: jeditor 2026-05-24 16:02
 │       Markers (1):
-│         01:02:14:00  CYAN     jeditor: Reaction shot — good cutaway
+│         01:02:14:00  CYAN     jeditor: Reaction shot, good cutaway
 │
 ├── RAW AUDIO 2026-01-20  [2 items]
 │   ├── INT LAV TRACK 1               00:12:58:00   Online   MC
@@ -49,19 +49,25 @@ Date:    2026-05-26  10:30
     │   Created: jeditor 2026-01-22 11:03   |   Modified: jeditor 2026-01-22 11:03
     │   Markers (2):
     │     00:00:00:00  WHITE    jeditor: Opening approved by director
-    │     00:08:34:12  RED      jeditor: Needs colour grade — skin tones off
+    │     00:08:34:12  RED      jeditor: Needs colour grade, skin tones off
     └── Assembly Edit v2              00:11:28:14   Online   SEQ
         Created: jeditor 2026-01-22 11:03   |   Modified: jeditor 2026-05-25 09:51
 `;
 
 const _MOCK_TREE = {
   'interplay://AvidWorkgroup/': [
+    { name: 'Projects', uri: 'interplay://AvidWorkgroup/Projects' },
+  ],
+  'interplay://AvidWorkgroup/Projects': [
+    { name: '2026', uri: 'interplay://AvidWorkgroup/Projects/2026' },
+    { name: '2025', uri: 'interplay://AvidWorkgroup/Projects/2025' },
+  ],
+  'interplay://AvidWorkgroup/Projects/2026': [
     { name: '2026001 ALPHA',   uri: 'interplay://AvidWorkgroup/Projects/2026/2026001 ALPHA' },
     { name: '2026002 BRAVO',   uri: 'interplay://AvidWorkgroup/Projects/2026/2026002 BRAVO' },
     { name: '2026003 CHARLIE', uri: 'interplay://AvidWorkgroup/Projects/2026/2026003 CHARLIE' },
     { name: '2026004 DELTA',   uri: 'interplay://AvidWorkgroup/Projects/2026/2026004 DELTA' },
     { name: '2026005 ECHO',    uri: 'interplay://AvidWorkgroup/Projects/2026/2026005 ECHO' },
-    { name: '2025 Archive',    uri: 'interplay://AvidWorkgroup/Projects/2025' },
   ],
   // 2026001 ALPHA intentionally absent → leaf node (tests leaf detection)
   'interplay://AvidWorkgroup/Projects/2026/2026002 BRAVO': [
@@ -110,21 +116,33 @@ const _DEFAULT_FIELDS = [
   ['System','Modified By'], ['System','Modified Date'],
 ];
 
+// Mutable mock config — save_settings and save_fields update this in place
+const _mockCfg = {
+  server: 'http://192.168.1.10:80', workgroup: 'AvidWorkgroup',
+  username: 'jsmith', has_password: true,
+  start_path: 'interplay://AvidWorkgroup/Projects/2026',
+  max_depth: 3, default_fields: _DEFAULT_FIELDS,
+};
+
 const _MOCK_API = {
   async get_version()                       { return 'dev'; },
-  async get_config()                        { return { server: 'http://192.168.1.10:80', workgroup: 'AvidWorkgroup', username: 'jsmith', has_password: true, start_path: '', max_depth: 3, default_fields: _DEFAULT_FIELDS }; },
+  async get_config()                        { return { ..._mockCfg }; },
   async get_children(uri)                   { return _MOCK_TREE[uri] || []; },
   async load_project(name)                  { return { text: _MOCK_TEXT.replace('2026002 BRAVO', name), summary: '7 items loaded.' }; },
   async save_to_file()                      { alert('Save not available in preview mode.'); return { ok: false }; },
   async open_email()                        { return { ok: true }; },
   async test_connection()                   { return { ok: true, message: 'Connected successfully. (mock)' }; },
-  async save_settings()                     { return { ok: true }; },
-  async save_fields()                       { return { ok: true }; },
+  async save_settings(server, workgroup, username, password, start_path, max_depth) {
+    Object.assign(_mockCfg, { server, workgroup, username, start_path, max_depth });
+    if (password) _mockCfg.has_password = true;
+    return { ok: true };
+  },
+  async save_fields(fields)                 { _mockCfg.default_fields = fields; return { ok: true }; },
   async check_updates() {
     if (new URLSearchParams(window.location.search).has('update')) {
       return {
         available: true, tag: '2099.01.01', current: 'dev',
-        notes: '## What\'s New\n\n- Added Markers support — fetch timecode markers per clip\n- Metadata Fields moved to a standalone toolbar panel\n- Fixed generate button layout jump during metadata generation\n- Copy, email, and save buttons now always visible\n\n## Fixes\n\n- Version stamping now picks up GitHub release tags correctly\n- Build workflow permissions fixed for release asset uploads',
+        notes: '## What\'s New\n\n- Added Markers support (fetch timecode markers per clip)\n- Metadata Fields moved to a standalone toolbar panel\n- Fixed generate button layout jump during metadata generation\n- Copy, email, and save buttons now always visible\n\n## Fixes\n\n- Version stamping now picks up GitHub release tags correctly\n- Build workflow permissions fixed for release asset uploads',
       };
     }
     return { available: false, current: 'dev' };
@@ -163,14 +181,17 @@ const FIELD_GROUPS = [
     { key: 'User.Camroll',      label: 'Camera Roll' },
     { key: 'System.Shoot Date', label: 'Shoot Date' },
   ]},
-  { label: 'Markers', hint: 'Adds one request per clip — may slow large projects', fields: [
+  { label: 'Markers', hint: 'Adds one request per clip, may slow large projects', fields: [
     { key: 'Markers.Locators', label: 'Include markers' },
   ]},
 ];
 
 const isBrowserPreview =
   typeof pywebview === 'undefined' &&
-  (window.location.protocol === 'file:' || new URLSearchParams(window.location.search).has('mock'));
+  (window.location.protocol === 'file:' ||
+   window.location.hostname === 'localhost' ||
+   window.location.hostname === '127.0.0.1' ||
+   new URLSearchParams(window.location.search).has('mock'));
 
 // Plain browser preview only. The desktop app injects pywebview after pywebviewready.
 if (isBrowserPreview) {
@@ -202,6 +223,8 @@ const filterInput      = el('filter-input');
 const sidebarStatus    = el('sidebar-status');
 const sidebarVersion   = el('sidebar-version');
 const sidebarCopyright = el('sidebar-copyright');
+const sidebarContext   = el('sidebar-context');
+const brandPath        = el('brand-path');
 
 const contentTitle     = el('content-title');
 const contentSubtitle  = el('content-subtitle');
@@ -225,7 +248,22 @@ const sUsername        = el('s-username');
 const sPassword        = el('s-password');
 const passwordHint     = el('password-hint');
 const sStartPath       = el('s-start-path');
+const btnBrowsePath    = el('btn-browse-path');
+const pickerBackdrop   = el('picker-backdrop');
+const pickerModalWrap  = el('picker-modal');
+const pickerTree       = el('picker-tree');
+const btnPickerClose   = el('btn-picker-close');
+const btnPickerCancel  = el('btn-picker-cancel');
+const btnPickerSelect  = el('btn-picker-select');
+const toggleStartPath  = el('toggle-start-path');
+const startPathBody    = el('start-path-body');
+const startPathHint    = el('start-path-hint');
 const sMaxDepth        = el('s-max-depth');
+const depthVal         = el('depth-val');
+const depthCrumb       = el('depth-crumb');
+const toggleDepth      = el('toggle-depth');
+const depthBody        = el('depth-body');
+const depthHint        = el('depth-hint');
 const connStatus       = el('conn-status');
 const btnTest          = el('btn-test');
 const btnSaveSettings  = el('btn-save-settings');
@@ -276,6 +314,7 @@ function resetShell() {
   state.startUri = null;
   folderList.innerHTML = '';
   sidebarStatus.textContent = '';
+  updateBrandPath('');
   clearOutput();
   setTitle(null);
   btnGenerate.disabled = true;
@@ -306,6 +345,8 @@ async function initTree(startUri, maxDepth) {
   renderTreeItems(folderList, items, 0);
   lucide.createIcons();
   updateSidebarStatus();
+  updateBrandPath(startUri);
+  prefetchTree(); // fire-and-forget background indexing
 }
 
 function renderTreeItems(container, items, depth) {
@@ -410,9 +451,51 @@ function selectTreeNode(item, row) {
   btnGenerate.disabled = false;
 }
 
+function updateBrandPath(startUri) {
+  const match    = startUri && startUri.match(/^interplay:\/\/[^/]+\/(.+)/);
+  const pathPart = match ? match[1].replace(/\/$/, '') : '';
+  const label    = pathPart ? pathPart.split('/').pop() : '';
+  brandPath.textContent = label;
+  sidebarContext.classList.toggle('hidden', !label);
+  if (label) lucide.createIcons({ nodes: [sidebarContext] });
+}
+
 function updateSidebarStatus() {
   const top = state.treeCache[state.startUri] || [];
   sidebarStatus.textContent = `${top.length} item${top.length !== 1 ? 's' : ''}`;
+}
+
+// Background BFS prefetch — populates treeCache so filter can search all levels.
+// Runs in batches of 5 to avoid flooding the server, respects max_depth.
+async function prefetchTree() {
+  const hardLimit = state.maxDepth > 0 ? state.maxDepth : 4;
+  const BATCH     = 5;
+
+  let tier = (state.treeCache[state.startUri] || [])
+    .map(i => ({ uri: i.uri, depth: 1 }));
+
+  if (!tier.length) return;
+  sidebarStatus.textContent = 'Indexing…';
+
+  while (tier.length) {
+    const next = [];
+    for (let i = 0; i < tier.length; i += BATCH) {
+      await Promise.all(tier.slice(i, i + BATCH).map(async ({ uri, depth }) => {
+        if (!state.treeCache[uri]) {
+          const items = await pywebview.api.get_children(uri);
+          if (items && !items.error) state.treeCache[uri] = items;
+        }
+        if (depth < hardLimit && state.treeCache[uri]) {
+          for (const child of state.treeCache[uri]) {
+            next.push({ uri: child.uri, depth: depth + 1 });
+          }
+        }
+      }));
+    }
+    tier = next;
+  }
+
+  updateSidebarStatus();
 }
 
 // ── Filter ─────────────────────────────────────────────────────────────────
@@ -534,7 +617,7 @@ function clearOutput() {
 function setTitle(name) {
   contentTitle.textContent = name || 'No folder selected';
   document.title = name
-    ? `${name} — Avid MediaCentral Metadata Exporter`
+    ? `${name} | Avid MediaCentral Metadata Exporter`
     : 'Avid MediaCentral Metadata Exporter';
 }
 
@@ -598,16 +681,33 @@ backdrop.addEventListener('click', () => {
 
 async function populateSheet() {
   const cfg = await pywebview.api.get_config();
-  sServer.value    = cfg.server    || '';
-  sWorkgroup.value = cfg.workgroup || 'AvidWorkgroup';
-  sUsername.value  = cfg.username  || '';
-  sPassword.value = '';
+  const wg  = cfg.workgroup || 'AvidWorkgroup';
+
+  sServer.value    = cfg.server || '';
+  sWorkgroup.value = wg;
+  sUsername.value  = cfg.username || '';
+  sPassword.value  = '';
   sPassword.placeholder = cfg.has_password ? 'Saved password' : '';
   passwordHint.textContent = cfg.has_password
     ? 'Leave blank to keep the saved password.'
     : 'Enter a password to save it in the system credential store.';
-  sStartPath.value = cfg.start_path || '';
-  sMaxDepth.value  = cfg.max_depth != null ? String(cfg.max_depth) : '0';
+
+  // Start path toggle: on if there's a saved custom path
+  const startPath = cfg.start_path || '';
+  const uriPrefix = `interplay://${wg}/`;
+  const suffix = startPath.startsWith(uriPrefix)
+    ? startPath.slice(uriPrefix.length).replace(/\/$/, '')
+    : startPath.replace(/^interplay:\/\/[^/]+\/?/, '');
+  sStartPath.value = suffix;
+  setToggle(toggleStartPath, startPathBody, startPathHint, suffix.length > 0);
+
+  // Depth toggle: on if max_depth > 0
+  const savedDepth = Number(cfg.max_depth) || 0;
+  const depthOn = savedDepth > 0;
+  sMaxDepth.value = depthOn ? Math.min(10, Math.max(1, savedDepth)) : '4';
+  setToggle(toggleDepth, depthBody, depthHint, depthOn);
+  if (depthOn) updateDepthCrumb(parseInt(sMaxDepth.value));
+
   connStatus.textContent = '';
   connStatus.className   = '';
 }
@@ -690,26 +790,214 @@ btnTest.addEventListener('click', async () => {
 });
 
 btnSaveSettings.addEventListener('click', async () => {
+  const wg          = sWorkgroup.value.trim() || 'AvidWorkgroup';
+  const pathEnabled = toggleStartPath.getAttribute('aria-checked') === 'true';
+  const suffix      = sStartPath.value.trim().replace(/^\/+|\/+$/g, '');
+  const fullPath    = pathEnabled && suffix ? `interplay://${wg}/${suffix}` : '';
+  const depthEnabled = toggleDepth.getAttribute('aria-checked') === 'true';
+  const maxDepth    = depthEnabled ? Number(sMaxDepth.value) || 0 : 0;
+
   const r = await pywebview.api.save_settings(
-    sServer.value, sWorkgroup.value, sUsername.value, sPassword.value,
-    sStartPath.value.trim(), Number(sMaxDepth.value) || 0
+    sServer.value, wg, sUsername.value, sPassword.value,
+    fullPath, maxDepth
   );
   if (!r.ok) {
     connStatus.textContent = r.error || 'Save failed.';
     connStatus.className   = 'err';
     return;
   }
+  closePickerModal();
   closeModal();
   // Re-init tree with updated settings
-  const cfg      = await pywebview.api.get_config();
-  const wg       = cfg.workgroup || 'AvidWorkgroup';
-  const startUri = cfg.start_path || `interplay://${wg}/`;
-  const maxDepth = Number(cfg.max_depth) || 0;
+  const cfg2      = await pywebview.api.get_config();
+  const cfgWg    = cfg2.workgroup || 'AvidWorkgroup';
+  const startUri = cfg2.start_path || `interplay://${cfgWg}/`;
+  const treeDepth = Number(cfg2.max_depth) || 0;
   state.folderName = null;
   state.folderUri  = null;
   clearOutput();
   setTitle(null);
-  await initTree(startUri, maxDepth);
+  await initTree(startUri, treeDepth);
+});
+
+// Close picker when workgroup changes (root URI would be different)
+sWorkgroup.addEventListener('input', () => closePickerModal());
+
+// ── Toggle: custom start path ──────────────────────────────────────────────
+toggleStartPath.addEventListener('click', () => {
+  const on = toggleStartPath.getAttribute('aria-checked') !== 'true';
+  setToggle(toggleStartPath, startPathBody, startPathHint, on);
+  if (!on) closePickerModal();
+});
+
+// ── Toggle: limit browse depth ─────────────────────────────────────────────
+toggleDepth.addEventListener('click', () => {
+  const on = toggleDepth.getAttribute('aria-checked') !== 'true';
+  setToggle(toggleDepth, depthBody, depthHint, on);
+  if (on) updateDepthCrumb(parseInt(sMaxDepth.value));
+});
+
+function setToggle(btn, body, hint, on) {
+  btn.setAttribute('aria-checked', on ? 'true' : 'false');
+  body.classList.toggle('hidden', !on);
+  hint.classList.toggle('hidden', on);
+}
+
+// Depth breadcrumb
+sMaxDepth.addEventListener('input', () => updateDepthCrumb(parseInt(sMaxDepth.value)));
+
+function updateDepthCrumb(depth) {
+  depthVal.textContent = String(depth);
+  depthCrumb.querySelectorAll('.dc-part[data-d], .dc-arrow[data-d]').forEach(node => {
+    node.classList.toggle('dc-dim', parseInt(node.dataset.d) > depth);
+  });
+}
+
+// ── Path picker modal ──────────────────────────────────────────────────────
+const pickerState = { cache: {}, expanded: new Set(), pendingUri: null, pendingWg: '' };
+
+btnBrowsePath.addEventListener('click', () => openPickerModal());
+
+async function openPickerModal() {
+  const wg = sWorkgroup.value.trim() || 'AvidWorkgroup';
+  pickerState.cache      = {};
+  pickerState.expanded   = new Set();
+  pickerState.pendingUri = null;
+  pickerState.pendingWg  = wg;
+  btnPickerSelect.disabled = true;
+
+  pickerTree.innerHTML = '<div class="picker-hint">Loading…</div>';
+  pickerBackdrop.classList.remove('hidden');
+  pickerModalWrap.classList.remove('hidden');
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    pickerBackdrop.classList.add('visible');
+    pickerModalWrap.classList.add('visible');
+  }));
+  lucide.createIcons();
+
+  const rootUri = `interplay://${wg}/`;
+  const items   = await pywebview.api.get_children(rootUri);
+  pickerTree.innerHTML = '';
+
+  if (!items || items.error) {
+    pickerTree.innerHTML = `<div class="picker-hint">${esc(items?.error || 'Not connected.')}</div>`;
+    return;
+  }
+
+  pickerState.cache[rootUri] = items.length ? items : [];
+
+  // Workgroup root row — selecting it clears the custom path
+  appendPickerRootRow(pickerTree, wg);
+  if (items.length) {
+    const sep = document.createElement('div');
+    sep.className = 'picker-sep';
+    pickerTree.appendChild(sep);
+    renderPickerLevel(pickerTree, items, 0, wg);
+  }
+  lucide.createIcons();
+}
+
+function closePickerModal() {
+  pickerBackdrop.classList.remove('visible');
+  pickerModalWrap.classList.remove('visible');
+  setTimeout(() => {
+    pickerBackdrop.classList.add('hidden');
+    pickerModalWrap.classList.add('hidden');
+    pickerTree.innerHTML = '';
+  }, 220);
+  pickerState.cache      = {};
+  pickerState.expanded   = new Set();
+  pickerState.pendingUri = null;
+}
+
+function appendPickerRootRow(container, wg) {
+  const row = document.createElement('div');
+  row.className = 'picker-row picker-root-row';
+  row.style.setProperty('--pd', 0);
+  const exp = document.createElement('span'); exp.className = 'picker-exp';
+  const folder = document.createElement('span'); folder.className = 'picker-folder';
+  folder.innerHTML = '<i data-lucide="home"></i>';
+  const label = document.createElement('span'); label.className = 'picker-label';
+  label.textContent = `${wg} (workgroup root)`;
+  row.appendChild(exp); row.appendChild(folder); row.appendChild(label);
+  row.addEventListener('click', e => { e.stopPropagation(); selectPickerItem('', row); });
+  container.appendChild(row);
+}
+
+function selectPickerItem(uri, row) {
+  pickerTree.querySelectorAll('.picker-row.selected').forEach(r => r.classList.remove('selected'));
+  row.classList.add('selected');
+  pickerState.pendingUri = uri;
+  btnPickerSelect.disabled = false;
+}
+
+function renderPickerLevel(container, items, depth, wg) {
+  items.forEach(item => {
+    const wrap = document.createElement('div');
+
+    const row = document.createElement('div');
+    row.className = 'picker-row';
+    row.style.setProperty('--pd', depth);
+    if (pickerState.pendingUri === item.uri) row.classList.add('selected');
+    if (pickerState.expanded.has(item.uri))  row.classList.add('expanded');
+
+    const expWrap = document.createElement('span'); expWrap.className = 'picker-exp';
+    expWrap.innerHTML = '<i data-lucide="chevron-right"></i>';
+    const folderWrap = document.createElement('span'); folderWrap.className = 'picker-folder';
+    folderWrap.innerHTML = '<i data-lucide="folder"></i>';
+    const label = document.createElement('span'); label.className = 'picker-label';
+    label.textContent = item.name;
+
+    row.appendChild(expWrap); row.appendChild(folderWrap); row.appendChild(label);
+
+    const childContainer = document.createElement('div');
+    if (pickerState.expanded.has(item.uri) && pickerState.cache[item.uri]) {
+      renderPickerLevel(childContainer, pickerState.cache[item.uri], depth + 1, wg);
+    }
+
+    row.addEventListener('click', async e => {
+      e.stopPropagation();
+      selectPickerItem(item.uri, row);
+
+      if (pickerState.expanded.has(item.uri)) {
+        pickerState.expanded.delete(item.uri);
+        row.classList.remove('expanded');
+        childContainer.innerHTML = '';
+      } else {
+        if (!pickerState.cache[item.uri]) {
+          const children = await pywebview.api.get_children(item.uri);
+          pickerState.cache[item.uri] = (children && !children.error) ? children : [];
+        }
+        const children = pickerState.cache[item.uri] || [];
+        if (children.length > 0) {
+          pickerState.expanded.add(item.uri);
+          row.classList.add('expanded');
+          childContainer.innerHTML = '';
+          renderPickerLevel(childContainer, children, depth + 1, wg);
+          lucide.createIcons();
+        }
+      }
+    });
+
+    wrap.appendChild(row); wrap.appendChild(childContainer);
+    container.appendChild(wrap);
+  });
+}
+
+btnPickerClose.addEventListener('click',  () => closePickerModal());
+btnPickerCancel.addEventListener('click', () => closePickerModal());
+btnPickerSelect.addEventListener('click', () => {
+  const uri = pickerState.pendingUri;
+  const wg  = pickerState.pendingWg;
+  if (uri === '' || uri === null) {
+    sStartPath.value = '';
+    setToggle(toggleStartPath, startPathBody, startPathHint, false);
+  } else {
+    const prefix = `interplay://${wg}/`;
+    sStartPath.value = uri.startsWith(prefix) ? uri.slice(prefix.length).replace(/\/$/, '') : uri;
+    setToggle(toggleStartPath, startPathBody, startPathHint, true);
+  }
+  closePickerModal();
 });
 
 // ── Fields panel ──────────────────────────────────────────────────────────
@@ -933,6 +1221,8 @@ document.addEventListener('keydown', e => {
       closeUpdateModal();
     } else if (!fieldsPanel.classList.contains('hidden')) {
       closeFieldsPanel();
+    } else if (!pickerModalWrap.classList.contains('hidden')) {
+      closePickerModal();
     } else if (!settingsModal.classList.contains('hidden')) {
       closeModal();
     } else if (filterInput.value) {

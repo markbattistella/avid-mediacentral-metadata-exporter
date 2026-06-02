@@ -37,6 +37,11 @@
         </button>
       </div>
 
+      <div id="sidebar-context" class="hidden">
+        <i data-lucide="folder-open"></i>
+        <span id="brand-path"></span>
+      </div>
+
       <div id="filter-wrap">
         <input id="filter-input" type="text" placeholder="Filter…"
                autocomplete="off" spellcheck="false">
@@ -128,15 +133,53 @@
 
         <div class="modal-section-divider">Browse Settings</div>
 
-        <label>Start path
-          <input id="s-start-path" type="text" autocomplete="off"
-                 placeholder="interplay://AvidWorkgroup/Projects">
-          <span class="field-hint">Where to begin browsing. Leave blank for server root.</span>
-        </label>
-        <label>Max browse depth
-          <input id="s-max-depth" type="number" min="0" max="20" value="0">
-          <span class="field-hint">0 = unlimited. Typical studio setup: 3 (year › project › bins)</span>
-        </label>
+        <div class="toggle-field">
+          <div class="toggle-header">
+            <span class="field-label">Custom start path</span>
+            <button class="toggle-btn" id="toggle-start-path" role="switch" aria-checked="false">
+              <span class="toggle-thumb"></span>
+            </button>
+          </div>
+          <div id="start-path-body" class="toggle-body hidden">
+            <div class="path-field">
+              <input id="s-start-path" type="text" autocomplete="off" spellcheck="false"
+                     placeholder="Projects">
+              <button id="btn-browse-path" class="path-browse-btn" title="Browse for start folder">
+                <i data-lucide="folder-search"></i>
+              </button>
+            </div>
+          </div>
+          <span id="start-path-hint" class="field-hint">Off: browsing from the workgroup root.</span>
+        </div>
+
+        <div class="toggle-field">
+          <div class="toggle-header">
+            <span class="field-label">Limit browse depth</span>
+            <button class="toggle-btn" id="toggle-depth" role="switch" aria-checked="false">
+              <span class="toggle-thumb"></span>
+            </button>
+          </div>
+          <div id="depth-body" class="toggle-body hidden">
+            <div class="depth-slider-row">
+              <input id="s-max-depth" type="range" min="1" max="10" value="4" step="1">
+              <span id="depth-val" class="depth-val">4</span>
+            </div>
+            <div id="depth-crumb" class="depth-crumb">
+              <span class="dc-part dc-always">Start</span>
+              <span class="dc-arrow" data-d="1">›</span>
+              <span class="dc-part" data-d="1">Folders</span>
+              <span class="dc-arrow" data-d="2">›</span>
+              <span class="dc-part" data-d="2">Sub-folders</span>
+              <span class="dc-arrow" data-d="3">›</span>
+              <span class="dc-part" data-d="3">Bins</span>
+              <span class="dc-arrow" data-d="4">›</span>
+              <span class="dc-part" data-d="4">Clips</span>
+              <span class="dc-arrow" data-d="5">›</span>
+              <span class="dc-part" data-d="5">…</span>
+            </div>
+          </div>
+          <span id="depth-hint" class="field-hint">Off: browsing all levels.</span>
+        </div>
 
         <div id="conn-status"></div>
         <div class="modal-actions">
@@ -178,6 +221,22 @@
           </div>
           <button id="btn-update-now" class="primary-btn">Install Now</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Path picker modal -->
+  <div id="picker-backdrop" class="picker-backdrop hidden"></div>
+  <div id="picker-modal" class="picker-modal-wrap hidden">
+    <div class="modal-dialog picker-dialog">
+      <div class="modal-header">
+        <h3>Select Start Folder</h3>
+        <button id="btn-picker-close" class="icon-btn"><i data-lucide="x"></i></button>
+      </div>
+      <div id="picker-tree" class="picker-tree-body"></div>
+      <div class="picker-modal-footer">
+        <button id="btn-picker-cancel">Cancel</button>
+        <button id="btn-picker-select" class="primary-btn" disabled>Select</button>
       </div>
     </div>
   </div>

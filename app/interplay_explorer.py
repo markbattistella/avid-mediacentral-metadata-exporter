@@ -536,16 +536,16 @@ def _friendly_error(exc: Exception) -> str:
     msg = str(exc)
     low = msg.lower()
     if "10022" in msg or "invalid argument was supplied" in low:
-        return ("Could not connect — Windows Firewall may be blocking the app. "
-                "Go to Windows Defender Firewall → Allow an app, find MCExplorer and allow it.")
+        return ("Could not connect. Windows Firewall may be blocking the app. "
+                "Go to Windows Defender Firewall > Allow an app, find MCExplorer and allow it.")
     if "10061" in msg or "connection refused" in low:
-        return "Connection refused — is the Avid WS service running on that server?"
+        return "Connection refused. Is the Avid WS service running on that server?"
     if "timed out" in low or "timeout" in low:
-        return "Connection timed out — check the server address and network."
+        return "Connection timed out. Check the server address and network."
     if "max retries exceeded" in low or "newconnectionerror" in low:
-        return "Could not reach server — check the address and that the server is online."
+        return "Could not reach server. Check the address and that the server is online."
     if "401" in msg or "unauthorized" in low:
-        return "Authentication failed — check username and password."
+        return "Authentication failed. Check username and password."
     if "soap fault" in low or "interplay error" in low:
         return msg
     if "Caused by" in msg:
@@ -899,7 +899,7 @@ class Api:
 def _cli():
     import argparse
     parser = argparse.ArgumentParser(
-        description="MediaCentral Explorer — CLI mode")
+        description="MediaCentral Explorer (CLI mode)")
     parser.add_argument("--server",   required=True, help="Server address")
     parser.add_argument("--user",     required=True, help="Username")
     parser.add_argument("--password", required=True, help="Password")
